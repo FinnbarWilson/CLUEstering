@@ -1,16 +1,17 @@
-import pandas as pd
+import json
+
 import numpy as np
 import optuna
-import json
-import CLUEstering as clue
-
+import pandas as pd
 from metrics import calculate_event_metrics
+
+import CLUEstering as clue
 
 # Load traning data
 PATH_TO_CALO_DATA = "/Users/finn/Documents/Code/Large_Datasets/ColliderML_R0/calo_hits/events0-999.parquet"
 calo_data = pd.read_parquet(PATH_TO_CALO_DATA)
 
-TRAIN_EVENTS = 100
+TRAIN_EVENTS = 200
 train_data = calo_data.iloc[:TRAIN_EVENTS]
 
 def objective(trial):
@@ -67,7 +68,12 @@ if __name__ == "__main__":
     print(f"Starting optuna optimisation on {TRAIN_EVENTS} traning events...")
 
     # Need highest possible score
-    study = optuna.create_study(direction='maximize')
+    study = optuna.create_study(
+        direction='maximize',
+        storage="sqlite:///clue_study.db",
+        study_name="CLUE_p0_tuning",
+        load_if_exists=True,
+    )
     study.optimize(objective, n_trials=50)
     
     print("\n--- Traning Results ---")
