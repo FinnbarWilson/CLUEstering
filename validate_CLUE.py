@@ -1,7 +1,7 @@
 import glob
 import json
 import os
-from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor
 
 import numpy as np
 import pandas as pd
@@ -25,13 +25,12 @@ rhoc = best_params['rhoc']
 BASE_DATA_DIR = "/home/xzcappon/phd/projects/maskformer/colliderml/data/ttbar_p0"
 file_pattern = os.path.join(BASE_DATA_DIR, "*", "calo_hits", "*.parquet")
 all_files = sorted(glob.glob(file_pattern))
-
 num_files = len(all_files)
 
 # worker function for parallel processing
 def process_single_event(file_path):
     try:
-        event = pd.read_parquet(file_path)
+        event = pd.read_parquet(file_path).iloc[0]
 
         # Format spatial data for CLUE
         clue_input_df = pd.DataFrame({
@@ -55,21 +54,20 @@ def process_single_event(file_path):
         return 0.0,0.0 
 
 if __name__ == "__main__":
-    print(f"\nStarting evaluation on {num_files} validation events using 16 cores...")
+    print(f"\nStarting evaluation on {num_files} calo files using 16 cores...")
     event_purities, event_efficiencies = [], []
+    completed = 0
 
     # run in parallel
     with ProcessPoolExecutor(max_workers=16) as executor:
-        futures = {executor.submit(process_single_event, path): path for path in all_files}
-
-        completed = 0
-        for future in as_completed(futures):
-            p, e = future.result()
+        results = executor.map(process_single_event, all_files, chunksize=1000)
+        
+        for p, e in results:
             if p > 0 or e > 0:
                 event_purities.append(p)
                 event_efficiencies.append(e)
             completed += 1
-            if completed % 5000 == 0:
+            if completed % 1000 == 0:
                 print(f"Processed {completed}/{num_files} files...")
 
     # save raw metrics
